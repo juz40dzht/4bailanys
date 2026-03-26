@@ -101,8 +101,31 @@ function checkGuess() {
         correctGroups++;
         
         if (correctGroups === 4) {
-            clearInterval(timerInterval); // Таймерді тоқтату
-            showToast("Керемет! Нәтижені бөлісіңіз!");
+    clearInterval(timerInterval); // Таймерді тоқтатамыз
+    
+    // 1 секундтық кідірістен кейін хабарлама шығару
+    setTimeout(() => {
+        const messageDiv = document.getElementById('message');
+        messageDiv.innerHTML = `
+            <div style="
+                background-color: #f8f9fa; 
+                border: 2px solid #333; 
+                border-radius: 10px; 
+                padding: 20px; 
+                margin-top: 20px; 
+                text-align: center;
+                animation: zoomIn 0.5s ease;
+            ">
+                <h3 style="margin: 0 0 10px 0; color: #28a745;">Құттықтаймыз! 🎉</h3>
+                <p style="margin: 0; font-weight: bold;">Ойын аяқталды.</p>
+                <p style="margin: 5px 0 0 0; color: #555;">Келесі ойын түнгі 00:00-де жаңарады.</p>
+            </div>
+        `;
+        
+        // Нәтиже бөліміне автоматты түрде апару
+        document.getElementById('game-stats').style.display = 'block';
+    }, 1000);
+}
         }
     } else {
         const counts = {};
