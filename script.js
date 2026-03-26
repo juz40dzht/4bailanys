@@ -108,7 +108,7 @@ function checkGuess() {
         const counts = {};
         levels.forEach(l => counts[l] = (counts[l] || 0) + 1);
         if (Object.values(counts).some(count => count === 3)) {
-            showToast("Бір ғана сөз қате!");
+            showToast("Бір ғана сөз қате! Тағы байқап көріңіз");
         } else {
             showToast("Байланыс жоқ...");
         }
