@@ -1,70 +1,52 @@
+let todayData = null;
 let selectedWords = [];
 let correctGroups = 0;
-let todayData = null;
 let guessHistory = [];
-let startTime, timerInterval;
-let resultsEmoji = []; // Түсті квадраттарды сақтау үшін
+let resultsEmoji = [];
+let startTime = null;
+let timerInterval = null;
 
 async function loadGame() {
     try {
         const response = await fetch('data.json');
         const data = await response.json();
         const today = new Date().toISOString().split('T')[0];
-        todayData = data.find(item => item.date === today) || data[0];
+        todayData = data.find(d => d.date === today) || data[0];
+
         document.getElementById('date-display').innerText = `Күн: ${todayData.date}`;
         renderBoard();
-        startTimer(); // Ойын басталғанда таймер қосылады
-    } catch (e) { console.error("Жүктеу қатесі:", e); }
-}
-
-function startTimer() {
-    startTime = Date.now();
-    timerInterval = setInterval(updateTimer, 1000);
-    document.getElementById('game-stats').style.display = 'block';
-}
-
-function updateTimer() {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-    const secs = (elapsed % 60).toString().padStart(2, '0');
-    document.getElementById('timer-display').innerText = `Уақыт: ${mins}:${secs}`;
+        startTimer();
+    } catch (error) {
+        console.error("Деректерді жүктеу қатесі:", error);
+    }
 }
 
 function renderBoard() {
     const board = document.getElementById('game-board');
     board.innerHTML = '';
-    let allWords = [];
-    todayData.categories.forEach(cat => {
-        cat.words.forEach(word => allWords.push({ text: word, level: cat.level }));
-    });
-    allWords.sort(() => Math.random() - 0.5);
-    allWords.forEach(wordObj => {
-        const btn = document.createElement('div');
-        btn.className = 'word-card';
-        btn.innerText = wordObj.text;
-        btn.onclick = () => selectWord(btn, wordObj);
-        board.appendChild(btn);
+    
+    // Сөздерді араластыру
+    const allWords = todayData.categories.flatMap(c => 
+        c.words.map(w => ({ text: w, level: c.level }))
+    ).sort(() => Math.random() - 0.5);
+
+    allWords.forEach(word => {
+        const div = document.createElement('div');
+        div.className = 'word-card';
+        div.innerText = word.text;
+        div.onclick = () => toggleSelect(div, word);
+        board.appendChild(div);
     });
 }
 
-function selectWord(el, obj) {
-    if (el.classList.contains('correct')) return;
-    if (el.classList.contains('selected')) {
-        el.classList.remove('selected');
-        selectedWords = selectedWords.filter(w => w.text !== obj.text);
+function toggleSelect(div, word) {
+    if (div.classList.contains('selected')) {
+        div.classList.remove('selected');
+        selectedWords = selectedWords.filter(w => w.text !== word.text);
     } else if (selectedWords.length < 4) {
-        el.classList.add('selected');
-        selectedWords.push(obj);
+        div.classList.add('selected');
+        selectedWords.push(word);
     }
-}
-
-function showToast(message) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerText = message;
-    container.innerHTML = '';
-    container.appendChild(toast);
 }
 
 function checkGuess() {
@@ -81,8 +63,6 @@ function checkGuess() {
     guessHistory.push(currentGuess);
 
     const levels = selectedWords.map(w => w.level);
-    
-    // Нәтиже үшін эмодзи қосу
     const emojis = { 1: '🟨', 2: '🟩', 3: '🟦', 4: '🟪' };
     resultsEmoji.push(levels.map(l => emojis[l]).join(''));
 
@@ -91,47 +71,26 @@ function checkGuess() {
     if (allSame) {
         const category = todayData.categories.find(c => c.level === levels[0]);
         showToast(category.title);
+        
         const board = document.getElementById('game-board');
         const solvedRow = document.createElement('div');
         solvedRow.className = `correct-row level-${levels[0]}`;
         solvedRow.innerHTML = `<strong>${category.title}</strong><span style="font-size:12px; margin-top:5px;">${category.words.join(', ')}</span>`;
+        
         document.querySelectorAll('.selected').forEach(el => el.remove());
         board.prepend(solvedRow);
+        
         selectedWords = [];
         correctGroups++;
-        
+
         if (correctGroups === 4) {
-    clearInterval(timerInterval); // Таймерді тоқтатамыз
-    
-    // 1 секундтық кідірістен кейін хабарлама шығару
-    setTimeout(() => {
-        const messageDiv = document.getElementById('message');
-        messageDiv.innerHTML = `
-            <div style="
-                background-color: #f8f9fa; 
-                border: 2px solid #333; 
-                border-radius: 10px; 
-                padding: 20px; 
-                margin-top: 20px; 
-                text-align: center;
-                animation: zoomIn 0.5s ease;
-            ">
-                <h3 style="margin: 0 0 10px 0; color: #28a745;">Құттықтаймыз! 🎉</h3>
-                <p style="margin: 0; font-weight: bold;">Ойын аяқталды.</p>
-                <p style="margin: 5px 0 0 0; color: #555;">Келесі ойын түнгі 00:00-де жаңарады.</p>
-            </div>
-        `;
-        
-        // Нәтиже бөліміне автоматты түрде апару
-        document.getElementById('game-stats').style.display = 'block';
-    }, 1000);
-}
+            finishGame();
         }
     } else {
         const counts = {};
         levels.forEach(l => counts[l] = (counts[l] || 0) + 1);
-        if (Object.values(counts).some(count => count === 3)) {
-            showToast("Бір ғана сөз қате! Тағы байқап көріңіз");
+        if (Object.values(counts).includes(3)) {
+            showToast("Бір ғана сөз қате!");
         } else {
             showToast("Байланыс жоқ...");
         }
@@ -140,25 +99,57 @@ function checkGuess() {
     }
 }
 
+function finishGame() {
+    clearInterval(timerInterval);
+    document.getElementById('game-stats').style.display = 'block';
+    
+    setTimeout(() => {
+        showToast("Керемет! Барлығын таптыңыз!");
+        const messageDiv = document.getElementById('message');
+        messageDiv.innerHTML = `
+            <div style="background-color: #f8f9fa; border: 2px solid #333; border-radius: 10px; padding: 20px; margin-top: 20px; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #28a745;">Құттықтаймыз! 🎉</h3>
+                <p style="margin: 0; font-weight: bold;">Ойын аяқталды.</p>
+                <p style="margin: 5px 0 0 0; color: #555;">Келесі ойын түнгі 00:00-де жаңарады.</p>
+            </div>
+        `;
+    }, 1000);
+}
+
+function startTimer() {
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        const now = Date.now();
+        const diff = Math.floor((now - startTime) / 1000);
+        const mins = String(Math.floor(diff / 60)).padStart(2, '0');
+        const secs = String(diff % 60).padStart(2, '0');
+        document.getElementById('timer-display').innerText = `Уақыт: ${mins}:${secs}`;
+    }, 1000);
+}
+
 function shareResult() {
     const time = document.getElementById('timer-display').innerText;
-    const date = todayData.date;
-    const emojiGrid = resultsEmoji.join('\n');
-    const shareText = `Тарих Connections 🌍\nКүн: ${date}\n${time}\n\n${emojiGrid}\n\nОйнау: ${window.location.href}`;
-
-    if (navigator.share) {
-        navigator.share({ title: 'Тарих Connections', text: shareText });
-    } else {
-        navigator.clipboard.writeText(shareText);
-        showToast("Нәтиже көшірілді! Достарыңызға жіберіңіз.");
-    }
+    const text = `Connections game 🌍\nДүниежүзі тарихы\nКүн: ${todayData.date}\n${time}\n\n${resultsEmoji.join('\n')}\n\nОйнау: ${window.location.href}`;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("Нәтиже көшірілді!");
+    });
 }
 
 function shuffleBoard() {
     if (correctGroups < 4) {
-        selectedWords = [];
         renderBoard();
+        selectedWords = [];
     }
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
 }
 
 loadGame();
