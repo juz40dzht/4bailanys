@@ -49,31 +49,56 @@ function selectWord(el, obj) {
     }
 }
 
-// 4. Тексеру
+// Стандартты alert-тың орнына әдемі хабарлама шығару
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = message;
+    container.innerHTML = ''; // Ескі хабарламаны өшіру
+    container.appendChild(toast);
+}
+
 function checkGuess() {
-    if (selectedWords.length !== 4) return;
+    if (selectedWords.length !== 4) {
+        showToast("4 сөз таңдаңыз!");
+        return;
+    }
 
     const levels = selectedWords.map(w => w.level);
     const allSame = levels.every(l => l === levels[0]);
 
     if (allSame) {
         const category = todayData.categories.find(c => c.level === levels[0]);
-        alert(`Дұрыс! Категория: ${category.title}`);
         
-        document.querySelectorAll('.selected').forEach(el => {
-            el.classList.remove('selected');
-            el.classList.add('correct', `level-${levels[0]}`);
-        });
+        // Хабарлама шығару
+        showToast(category.title);
+
+        // Табылған сөздерді өшіріп, орнына бір үлкен категория жолағын қою
+        const board = document.getElementById('game-board');
+        const solvedRow = document.createElement('div');
+        solvedRow.className = `correct-row level-${levels[0]}`;
+        solvedRow.innerHTML = `<strong>${category.title}</strong><br>${category.words.join(', ')}`;
+        
+        // Таңдалған сөздердің карточкаларын жою
+        document.querySelectorAll('.selected').forEach(el => el.remove());
+        
+        // Жаңа жолақты тақтаның ең басына қосу
+        board.prepend(solvedRow);
+        
         selectedWords = [];
         correctGroups++;
-        if (correctGroups === 4) alert("Құттықтаймыз! Барлығын таптыңыз!");
+        
+        if (correctGroups === 4) {
+            setTimeout(() => showToast("Керемет! Барлығын таптыңыз!"), 1000);
+        }
     } else {
-        alert("Қате! Қайта байқап көріңіз.");
-        document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        showToast("Байланыс жоқ...");
+        // Қате болғанда сөздерді "сілкілеу" анимациясы үшін (optional)
+        document.querySelectorAll('.selected').forEach(el => {
+            el.classList.remove('selected');
+        });
         selectedWords = [];
     }
 }
-
-function shuffleBoard() { renderBoard(); }
-
 loadGame();
